@@ -1,46 +1,103 @@
 #include <iostream>
+#include <vector>
+
 
 const int BOARD_SIZE = 9;
 
 enum class Stone {NONE, BLACK, WHITE};
 
 class GoBoard {
+    
     private:
         Stone board[BOARD_SIZE][BOARD_SIZE];
         Stone player;
+
     public:
         GoBoard() {
-            for (int i = 0; i < BOARD_SIZE; ++i) {
-                for (int j = 0; j < BOARD_SIZE; ++j) {
-                    board[i][j] = Stone::NONE;
+            for (int row = 0; row < BOARD_SIZE; ++row) {
+                for (int column = 0; column < BOARD_SIZE; ++column) {
+                    this->board[row][column] = Stone::NONE;
                 }
             }
 
-            player = Stone::WHITE;
+            this->player = Stone::WHITE;
         }
 
         void user_input() {
-            std::cout << "It is player " << (player == Stone::WHITE ? "WHITE" : "BLACK") << "'s move." << std::endl;
-            int row, column;
+            std::cout << "It is player " << (this->player == Stone::WHITE ? "WHITE" : "BLACK") << "'s move." << std::endl;
+            int row;
+            int column;
             std::cout << "Enter row and column (0-8): ";
             std::cin >> row >> column;
 
-            if (row >= 0 && row < BOARD_SIZE && column >= 0 && column < BOARD_SIZE) {
-                place_stone(row, column, player);
+            if (is_valid_move(row,column,this->player)) {
+                place_stone(row, column);
 
             } else {
-                std::cout << "Invalid input. Please enter row and column within the range 0-8." << std::endl;
+                std::cout << "Invalid input." <<std::endl << "Please enter row and column within the range 0-8, that is a free space." << std::endl;
             }
         }
 
-        void place_stone(int row, int column, Stone stone){
-            if(is_valid_move(row,column,stone)){
-                this->board[row][column] = stone;
-                player = (player == Stone::WHITE) ? Stone::BLACK : Stone::WHITE;
-            }else{
-                std::cout << "Invalid move" << std::endl;
-            }
+        void place_stone(int row, int column){
+            this->board[row][column] = this->player;
+            Stone opponent = (this->player == Stone::WHITE) ? Stone::BLACK : Stone::WHITE;
+            handle_captures(opponent);
+            handle_captures(this->player);
+            this->player = (this->player == Stone::WHITE) ? Stone::BLACK : Stone::WHITE;
 
+        };
+
+        void handle_captures(Stone opponent) {
+            bool has_visited[BOARD_SIZE][BOARD_SIZE] = {false};
+            
+            for (int row = 0; row < BOARD_SIZE; row++) {
+                for (int column = 0; column < BOARD_SIZE; column++) {
+                    if (!has_visited[row][column] && board[row][column] == opponent) {
+                        std::vector<std::pair<int, int>> connected;
+                        find_connected_stones(row, column, opponent, connected, has_visited);
+                        
+                        if (is_surrounded(connected)) {
+                            remove_group(connected);
+                        }
+                    }
+                }
+            }
+        };
+
+        void find_connected_stones(int row, int column, Stone stone, std::vector<std::pair<int, int>>& connected, bool (&has_visited)[BOARD_SIZE][BOARD_SIZE]) {
+            if (row < 0 || row >= BOARD_SIZE || column < 0 || column >= BOARD_SIZE || has_visited[row][column] || this->board[row][column] != stone) {
+                return;
+            }
+            
+            has_visited[row][column] = true;
+            connected.push_back({row, column});
+
+            find_connected_stones(row - 1, column, stone, connected, has_visited); // Up
+            find_connected_stones(row + 1, column, stone, connected, has_visited); // Down
+            find_connected_stones(row, column - 1, stone, connected, has_visited); // Left
+            find_connected_stones(row, column + 1, stone, connected, has_visited); // Right
+        };
+
+        bool is_surrounded(const std::vector<std::pair<int, int>>& connected) {
+            for (const auto& stone : connected) {
+                int row = stone.first;
+                int column = stone.second;
+                
+                if (row - 1 >= 0 && board[row - 1][column] == Stone::NONE) return false;            // Up
+                if (row + 1 < BOARD_SIZE && board[row + 1][column] == Stone::NONE) return false;    // Down
+                if (column - 1 >= 0 && board[row][column - 1] == Stone::NONE) return false;         // Left
+                if (column + 1 < BOARD_SIZE && board[row][column + 1] == Stone::NONE) return false; // Right
+            }
+            
+            return true;
+        };
+
+        void remove_group(const std::vector<std::pair<int, int>>& connected) {
+            for (const auto& stone : connected) {
+                int row = stone.first;
+                int column = stone.second;
+                board[row][column] = Stone::NONE;
+            }
         };
 
         bool is_valid_move(int row, int column, Stone stone) {
@@ -82,3 +139,4 @@ int main() {
     }
     return 0;
 }
+
